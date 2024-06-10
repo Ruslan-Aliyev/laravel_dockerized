@@ -1,0 +1,102 @@
+version: '3'
+# Version 3 is the standard (of 2019) that every docker-compose should have
+
+services:
+  php:
+    # -- FOR PROD --
+    image: atabegruslan/docker4laravel-php:0.0.1
+    environment:
+      # APP_DEBUG: "true"
+      APP_KEY: "base64:SWXterQT+3H2DQNwvOS+k0OhaIccLOfd8+z+P2qId3c="
+    volumes:
+      - ./.env:/var/www/html/.env
+    # -- FOR LOCAL --
+    # build:
+    #   context: ./docker # look for Dockerfile in this directory
+    #   # dockerfile: AnotherNameDockerFile # This is the alternative
+    # container_name: customphp
+    # volumes:
+    #   - ./:/var/www/html
+
+  web:
+    # -- FOR PROD --
+    image: atabegruslan/docker4laravel-nginx:0.0.1
+    # -- FOR LOCAL --
+    # image: nginx:1.17
+    # working_dir: /var/www/html
+    # volumes:
+    #   - ./:/var/www/html
+    #   - ./docker/nginx_template_local.conf:/etc/nginx/conf.d/default.conf # Recommended example template: https://laravel.com/docs/7.x/deployment#nginx
+    ports:
+      - "80:80"
+
+  node:
+    image: node:12
+    user: node # Node image already have an user called node
+    working_dir: /assets
+    volumes:
+      - ./:/assets
+    command: npm run watch # Default command if nothing is specified
+
+  db:
+    image: mysql:8
+    restart: unless-stopped # By default, a container does not restart under any circumstance.
+    tty: true # enable shell-like interface to interact with this container
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes" # Allow connecting to it with empty passwords
+      MYSQL_ROOT_HOST: "%" # Allow connections from any host
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}" # Ensure these match .env
+      MYSQL_DATABASE: "${DB_DATABASE}"
+      # MYSQL_USER: "${DB_USERNAME}" # https://stackoverflow.com/questions/66831863/mysql-docker-container-keeps-restarting/66910240#66910240
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - mysqldata:/var/lib/mysql # Persist data, as containers don't keep data when restarted.
+
+  redis:
+    image: redis:5
+    volumes:
+      - redisdata:/data
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    container_name: phpmyadmin
+    depends_on: 
+      - db
+    ports:
+      - "8089:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}" 
+
+  # composer:
+  #   image: composer:latest
+  #   container_name: composer
+  #   volumes:
+  #     - ./:/var/www/html
+  #   working_dir: /var/www/html
+  # With the above composer container: `docker-compose run —rm composer require blah/blah`
+  # Or do like this: https://www.codegrepper.com/code-examples/shell/Composer+install+with+dockerfile
+
+  # artisan:
+  #   build:
+  #     context: ./docker
+  #     dockerfile: ./docker/Dockerfile
+  #   container_name: artisan
+  #   volumes:
+  #     - ./:/var/www/html
+  #   depends_on:
+  #     - mysql # else migrations wont happen properly
+  #   working_dir: /var/www/html
+  #   entrypoint: ['php', '/var/www/html/artisan'] # Runs `php /var/www/html/artisan` instead of `artisan` when `docker-compose run artisan` is called.
+
+  # mailhog:
+  #   image: mailhog/mailhog:latest
+  #   container_name: mailhog
+  #   ports:
+  #     - 1025:1025
+  #     - 8025:8025
+
+volumes: # Named volumes
+  mysqldata:
+  redisdata:
